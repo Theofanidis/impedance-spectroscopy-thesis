@@ -125,7 +125,7 @@ class NewSetDialog(tk.Toplevel):
         super().__init__(parent)
         self.parent = parent
         self.title("Create New Telemetry Set")
-        self.geometry("340x260")
+        self.geometry("340x430")
         self.resizable(False, False)
         
         self.transient(parent)
@@ -136,28 +136,44 @@ class NewSetDialog(tk.Toplevel):
         main_frame.pack(fill=tk.BOTH, expand=True)
         main_frame.columnconfigure(1, weight=1)
         
-        ttk.Label(main_frame, text="Target Temp").grid(row=0, column=0, sticky="w", pady=5)
+        ttk.Label(main_frame, text="Target Temp (C) ").grid(row=0, column=0, sticky="w", pady=5)
         self.entry_temp = ttk.Entry(main_frame, width=15)
         self.entry_temp.grid(row=0, column=1, sticky="ew", pady=5)
         
-        ttk.Label(main_frame, text="Target SoC").grid(row=1, column=0, sticky="w", pady=5)
+        ttk.Label(main_frame, text="Target SoC (%) ").grid(row=1, column=0, sticky="w", pady=5)
         self.entry_soc = ttk.Entry(main_frame, width=15)
         self.entry_soc.grid(row=1, column=1, sticky="ew", pady=5)
         
-        ttk.Label(main_frame, text="Target IDC").grid(row=2, column=0, sticky="w", pady=5)
+        ttk.Label(main_frame, text="Target IDC (mA) ").grid(row=2, column=0, sticky="w", pady=5)
         self.entry_idc = ttk.Entry(main_frame, width=15)
         self.entry_idc.grid(row=2, column=1, sticky="ew", pady=5)
         
-        ttk.Label(main_frame, text="Target IAC List").grid(row=3, column=0, sticky="w", pady=5)
+        ttk.Label(main_frame, text="Target IAC List ").grid(row=3, column=0, sticky="w", pady=5)
         self.entry_iac = ttk.Entry(main_frame, width=15)
         self.entry_iac.grid(row=3, column=1, sticky="ew", pady=5)
 
-        ttk.Label(main_frame, text="Sample Points").grid(row=4, column=0, sticky="w", pady=5)
+        ttk.Label(main_frame, text="Duration (ms) ").grid(row=4, column=0, sticky="w", pady=5)
         self.entry_iac = ttk.Entry(main_frame, width=15)
         self.entry_iac.grid(row=4, column=1, sticky="ew", pady=5)
+
+        ttk.Label(main_frame, text="Sampling Start (ms) ").grid(row=5, column=0, sticky="w", pady=5)
+        self.entry_iac = ttk.Entry(main_frame, width=15)
+        self.entry_iac.grid(row=5, column=1, sticky="ew", pady=5)
+
+        ttk.Label(main_frame, text="Sample Points").grid(row=6, column=0, sticky="w", pady=5)
+        self.entry_iac = ttk.Entry(main_frame, width=15)
+        self.entry_iac.grid(row=6, column=1, sticky="ew", pady=5)
+
+        ttk.Label(main_frame, text="Sampling Freq (Hz) ").grid(row=7, column=0, sticky="w", pady=5)
+        self.entry_iac = ttk.Entry(main_frame, width=15)
+        self.entry_iac.grid(row=7, column=1, sticky="ew", pady=5)
+
+        info_frame = ttk.Frame(main_frame)
+        info_frame.grid(row=8, column=0, columnspan=2, pady=(20, 0), sticky="ew")
+        ttk.Label(info_frame, text="Οι AC συνιστώσες να έχουν τη μορφή \n(f1,I1),(f2,I2),...").grid()
         
         btn_frame = ttk.Frame(main_frame)
-        btn_frame.grid(row=5, column=0, columnspan=2, pady=(20, 0), sticky="ew")
+        btn_frame.grid(row=9, column=0, columnspan=2, pady=(20, 0), sticky="ew")
         btn_frame.columnconfigure(0, weight=1)
         btn_frame.columnconfigure(1, weight=1)
         
