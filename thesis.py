@@ -1,21 +1,52 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
+from tkinter import filedialog  # Added for file open/save dialogs
 import json
 import re
 
 
 class Set:
-    def __init__(self, set_id, temp, soc, mode, sampling_freq, sample_points, sample_time, params, status="Pending"):
+    def __init__(self, set_id, temp, soc, mode, sampling_freq, sample_points, sample_time, params, commands, status="Pending"):
         self.set_id = set_id
         self.temp = temp
         self.soc = soc
         self.status = status
-        self.mode=mode
-        self.sampling_freq=sampling_freq
-        self.sample_points=sample_points
-        self.sample_time=sample_time
-        self.params=params
+        self.mode = mode
+        self.sampling_freq = sampling_freq
+        self.sample_points = sample_points
+        self.sample_time = sample_time
+        self.params = params
+        self.commands=commands
+
+    def to_dict(self):
+        return {
+            "set_id": self.set_id,
+            "temp": self.temp,
+            "soc": self.soc,
+            "status": self.status,
+            "mode": self.mode,
+            "sampling_freq": self.sampling_freq,
+            "sample_points": self.sample_points,
+            "sample_time": self.sample_time,
+            "params": self.params,
+            "commands": self.commands
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(
+            set_id=data["set_id"],
+            temp=data["temp"],
+            soc=data["soc"],
+            mode=data["mode"],
+            sampling_freq=data["sampling_freq"],
+            sample_points=data["sample_points"],
+            sample_time=data["sample_time"],
+            params=data["params"],
+            commands=data["commands"],
+            status=data.get("status", "Pending")
+        )
 
 
 class Panel(ttk.LabelFrame):
@@ -29,7 +60,6 @@ class Panel(ttk.LabelFrame):
         self.grid_rowconfigure(0, weight=1)
         
         # Define Columns for the Treeview
-        # 'c0' tracks the visible sequential Set ID index column, others hold parameters
         self.columns = ("id", "temp", "soc", "mode", "set_status")
         
         self.tree = ttk.Treeview(self, columns=self.columns, show="headings", selectmode="browse")
@@ -67,6 +97,14 @@ class Panel(ttk.LabelFrame):
         self.sets[item_iid] = data_set_instance
         self.update_status(f"Added Profile Set {data_set_instance.set_id}")
 
+    def clear_all(self):
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        self.sets.clear()
+
+    def get_ordered_sets(self):
+        return [self.sets[iid] for iid in self.tree.get_children()]
+
     def get_selected_set(self):
         selected_item = self.tree.selection()
         if not selected_item:
@@ -94,7 +132,7 @@ class Panel(ttk.LabelFrame):
         iid = selected[0]
         idx = self.tree.index(iid)
         if idx == 0:
-            return # Top of boundary limit reached
+            return 
             
         # Move row element position inside Treeview
         self.tree.move(iid, self.tree.parent(iid), idx - 1)
@@ -116,15 +154,11 @@ class Panel(ttk.LabelFrame):
         self.update_status(f"Moved Set {self.sets[iid].set_id} Down")
 
 
-import tkinter as tk
-from tkinter import ttk
-
 class NewSetDialog(tk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
         self.title("Create New Experiment Set")
-        # Kept geometry comfortable for global parameters + notebook layout
         self.geometry("360x520") 
         self.resizable(False, False)
         
@@ -132,13 +166,10 @@ class NewSetDialog(tk.Toplevel):
         self.grab_set()
         self.result = None
         
-        # Base container frame with padding
         base_frame = ttk.Frame(self, padding=15)
         base_frame.pack(fill=tk.BOTH, expand=True)
         
-        # ==========================================
-        # 1. Global Parameters (Outside the Notebook)
-        # ==========================================
+
         global_frame = ttk.Frame(base_frame)
         global_frame.pack(fill=tk.X, pady=(0, 15))
         global_frame.columnconfigure(1, weight=1)
@@ -163,16 +194,12 @@ class NewSetDialog(tk.Toplevel):
         self.entry_freq = ttk.Entry(global_frame, width=15)
         self.entry_freq.grid(row=4, column=1, sticky="ew", pady=5)
         
-        # Separator line between global parameters and tabs
         ttk.Separator(base_frame, orient="horizontal").pack(fill=tk.X, pady=(0, 10))
 
-        # ==========================================
-        # 2. Create the Notebook (Tab Control)
-        # ==========================================
+
         self.notebook = ttk.Notebook(base_frame)
         self.notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
-        # Initialize the 3 Tabs
         self.tab1 = ttk.Frame(self.notebook, padding=10)
         self.tab2 = ttk.Frame(self.notebook, padding=10)
         self.tab3 = ttk.Frame(self.notebook, padding=10)
@@ -213,6 +240,8 @@ class NewSetDialog(tk.Toplevel):
         self.entry_relaxation_time = ttk.Entry(self.tab2, width=15)
         self.entry_relaxation_time.grid(row=2, column=1, sticky="ew", pady=5)
 
+        self.tab3.columnconfigure(1, weight=1)
+
         ttk.Label(self.tab3, text="CC stage I (mA) ").grid(row=0, column=0, sticky="w", pady=5)
         self.entry_charge_i = ttk.Entry(self.tab3, width=15)
         self.entry_charge_i.grid(row=0, column=1, sticky="ew", pady=5)
@@ -234,8 +263,8 @@ class NewSetDialog(tk.Toplevel):
         btn_frame.columnconfigure(0, weight=1)
         btn_frame.columnconfigure(1, weight=1)
         
-        ttk.Button(btn_frame, text="Cancel", command=self.destroy).grid(row=0, column=0, padx=(0, 5), sticky="ew")
-        ttk.Button(btn_frame, text="Submit", command=self.on_submit).grid(row=0, column=1, padx=(5, 0), sticky="ew")
+        ttk.Button(btn_frame, text="Άκυρο", command=self.destroy).grid(row=0, column=0, padx=(0, 5), sticky="ew")
+        ttk.Button(btn_frame, text="OK", command=self.on_submit).grid(row=0, column=1, padx=(5, 0), sticky="ew")
         
         self.bind("<Return>", lambda event: self.on_submit())
         self.wait_window(self)
@@ -243,9 +272,9 @@ class NewSetDialog(tk.Toplevel):
     def on_submit(self):
         temp = self.entry_temp.get()
         soc = self.entry_soc.get()
-        start=self.entry_start.get()
-        points=self.entry_points.get()
-        freq=self.entry_freq.get()
+        start = self.entry_start.get()
+        points = self.entry_points.get()
+        freq = self.entry_freq.get()
         idc = self.entry_idc.get()
         iac = self.entry_iac.get()
         duration = self.entry_duration.get()
@@ -258,52 +287,60 @@ class NewSetDialog(tk.Toplevel):
         charge_v_time = self.entry_charge_v_time.get()
         
         try:
+            base_params = {
+                "temp": int(temp),
+                "soc": int(soc),
+                "start": int(start),
+                "points": int(points),
+                "freq": int(freq)
+            }
+
             if idc != "" and iac != "":
-                mode = "EIS"
-                self.result = {
-                    "temp": int(temp),
-                    "soc": int(soc),
-                    "start": int(start),
-                    "points": int(points),
-                    "freq": int(freq),
-                    "idc": int(idc),
-                    "iac": int(iac),
-                    "duration": int(duration),
-                    "mode": mode
-                }
+                try:
+                    cleaned = iac.strip().strip("()")
+                    blocks = cleaned.split("),(")
+                    result = []
+                    for block in blocks:
+                        if not block.strip():
+                            continue
+                        # Split individual digits by comma and cast to integers
+                        item_tuple = tuple(int(x.strip()) for x in block.split(","))
+                        result.append(item_tuple)
+                except:
+                    messagebox.showwarning("Error", "Please check your IAC values.")
+
+                base_params.update({
+                    "mode": "EIS",
+                    "params": {
+                        "idc": int(idc), 
+                        "iac": result, 
+                        "duration": int(duration)
+                    },
+                    "commands": ["SET_SOC "+soc, "SET_TEMP "+temp, "SSTART "+start, "SPOINTS "+points, "SFREQ "+freq
+                    ]
+                })
+
+
             elif excitation_i != "" and excitation_time != "" and relaxation_time != "":
-                mode = "VRP"
-                self.result = {
-                    "temp": int(temp),
-                    "soc": int(soc),
-                    "start": int(start),
-                    "points": int(points),
-                    "freq": int(freq),
-                    "excitation_i": int(excitation_i),
-                    "excitation_time": int(excitation_time),
-                    "relaxation_time": int(relaxation_time),
-                    "mode": mode
-                }
+                base_params.update({
+                    "mode": "VRP",
+                    "params": {"excitation_i": int(excitation_i), "excitation_time": int(excitation_time), "relaxation_time": int(relaxation_time)},
+                    "commands": ["SET_SOC "+soc, "SET_TEMP "+temp, "SSTART "+start, "SPOINTS "+points, "SFREQ "+freq
+                    ]
+                })
             else:
-                mode = "CHARGE"
-                self.result = {
-                    "temp": int(temp),
-                    "soc": int(soc),
-                    "start": int(start),
-                    "points": int(points),
-                    "freq": int(freq),
-                    "charge_i": int(charge_i),
-                    "charge_v_lim": int(charge_v_lim),
-                    "charge_v": int(charge_v),
-                    "charge_v_time": int(charge_v_time),
-                    "mode": mode
-                }
+                base_params.update({
+                    "mode": "CHARGE",
+                    "params": {"charge_i": int(charge_i), "charge_v_lim": int(charge_v_lim), "charge_v": int(charge_v), "charge_v_time": int(charge_v_time)},
+                    "commands": ["SET_SOC "+soc, "SET_TEMP "+temp, "SSTART "+start, "SPOINTS "+points, "SFREQ "+freq
+                    ]
+                })
+            
+            self.result = base_params
             self.destroy()
 
         except ValueError:
-            messagebox.showwarning("Error", "Please check your values")
-
-        
+            messagebox.showwarning("Error", "Please check your values.")
 
 
 class BatteryDashboard(tk.Tk):
@@ -324,10 +361,12 @@ class BatteryDashboard(tk.Tk):
         self.style = ttk.Style()
         self.style.configure("Abort.TButton", foreground="red")
         
+        # --- MENU BAR CONFIGURATIONS ---
         menu_bar = tk.Menu(self)
         file_menu = tk.Menu(menu_bar, tearoff=0)
         file_menu.add_command(label="New Set Wizard", command=self.handle_new_set)
-        file_menu.add_command(label="Export Sets...", command=self.handle_new_set)
+        file_menu.add_command(label="Import...", command=self.handle_import_sets)
+        file_menu.add_command(label="Export...", command=self.handle_export_sets)
         file_menu.add_separator()
         file_menu.add_command(label="Exit Application", command=self.quit)
         
@@ -338,7 +377,6 @@ class BatteryDashboard(tk.Tk):
         menu_bar.add_cascade(label="Help", menu=help_menu)
         self.config(menu=menu_bar)
         
-        # Instantiate the new Left Table view instead of old Listbox format
         self.experiment_sets = Panel(self, status_callback=self.set_status)
         self.experiment_sets.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         
@@ -352,9 +390,9 @@ class BatteryDashboard(tk.Tk):
         display_group.grid_columnconfigure(1, weight=1)
         
         self.status_variables = {
-            "Temp 1": tk.StringVar(value="-- °C"),
-            "Temp 2": tk.StringVar(value="-- °C"),
-            "Temp 3": tk.StringVar(value="-- °C"),
+            "Battery": tk.StringVar(value="-- °C"),
+            "Peltier": tk.StringVar(value="-- °C"),
+            "Heatsink": tk.StringVar(value="-- °C"),
             "SoC": tk.StringVar(value="-- %"),
             "Voltage": tk.StringVar(value="-- V"),
             "Current": tk.StringVar(value="-- A")
@@ -380,6 +418,7 @@ class BatteryDashboard(tk.Tk):
         ttk.Button(btn_group, text="RUN", command=self.handle_run).grid(row=4, column=0, sticky="ew", pady=5, padx=(0, 2))
         ttk.Button(btn_group, text="ABORT", command=self.handle_abort, style="Abort.TButton").grid(row=4, column=1, sticky="ew", pady=5, padx=(2, 0))
         
+        # Re-inserted original position for CSV downloads
         ttk.Button(btn_group, text="Download CSV...", command=self.download_measurements).grid(row=5, column=0, columnspan=2, sticky="ew", pady=(15, 5))
         
         self.status_var = tk.StringVar()
@@ -387,11 +426,9 @@ class BatteryDashboard(tk.Tk):
         self.status_bar.grid(row=1, column=0, columnspan=2, sticky="ew")
 
         self.set_status("System Workspace Ready")
-        
 
     def set_status(self, text_message):
         self.status_var.set(f"{text_message}")
-
 
     def handle_new_set(self):
         self.set_status("Awaiting profile configurations...")
@@ -403,19 +440,86 @@ class BatteryDashboard(tk.Tk):
                 soc=dialog.result["soc"],
                 status="Pending",
                 mode=dialog.result["mode"],
-                sampling_freq=dialog.result["mode"],
-                sample_points=dialog.result["mode"],
-                sample_time=dialog.result["mode"],
-                params={}
-                
+                sampling_freq=dialog.result["freq"],
+                sample_points=dialog.result["points"],
+                sample_time=dialog.result["start"],
+                params=dialog.result["params"],
+                commands=dialog.result["commands"]
             )
             self.set_counter += 1
             self.experiment_sets.add_set(new_set_obj)
         else:
             self.set_status("Configuration creation canceled.")
 
+    def handle_export_sets(self):
+        ordered_sets = self.experiment_sets.get_ordered_sets()
+        if not ordered_sets:
+            messagebox.showwarning("Export Warning", "The workspace profile table is empty. Nothing to export.")
+            return
+
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")],
+            title="Export Profile Set Sequences"
+        )
+        if not file_path:
+            return
+
+        try:
+            serializable_list = [s.to_dict() for s in ordered_sets]
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(serializable_list, f, indent=4)
+            self.set_status(f"Successfully exported {len(serializable_list)} experiment sets.")
+            messagebox.showinfo("Export Successful", f"Saved configuration profiles to:\n{file_path}")
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to save profiles to text file:\n{str(e)}")
+
+    def handle_import_sets(self):
+        file_path = filedialog.askopenfilename(
+            filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")],
+            title="Import Profile Set Sequences"
+        )
+        if not file_path:
+            return
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                raw_data = json.load(f)
+
+            if not isinstance(raw_data, list):
+                raise ValueError("Invalid file structure layout format framework parsed framework settings.")
+
+            choice = messagebox.askyesnocancel(
+                "Import Option", 
+                "Would you like to clear the current workspace table layout before loading the configurations?\n\n"
+                "[Yes] = Clear Table and Load\n[No] = Append to Existing Table\n[Cancel] = Abort Action"
+            )
+            
+            if choice is None:
+                return
+            elif choice is True:
+                self.experiment_sets.clear_all()
+                self.set_counter = 1
+
+            imported_count = 0
+            for item in raw_data:
+                loaded_set = Set.from_dict(item)
+                
+                if choice is False or loaded_set.set_id < self.set_counter:
+                    loaded_set.set_id = self.set_counter
+                
+                if loaded_set.set_id >= self.set_counter:
+                    self.set_counter = loaded_set.set_id + 1
+
+                self.experiment_sets.add_set(loaded_set)
+                imported_count += 1
+
+            self.set_status(f"Successfully loaded {imported_count} configuration profiles.")
+        except Exception as e:
+            messagebox.showerror("Import Error", f"Could not parse setup configuration data indices elements:\n{str(e)}")
+
     def handle_sync(self):
-        print(self.experiment_sets.sets)
+        print({iid: s.to_dict() for iid, s in self.experiment_sets.sets.items()})
 
     def handle_run(self):
         self.set_status("Sending Run Command and Set List to Microcontroller...")
