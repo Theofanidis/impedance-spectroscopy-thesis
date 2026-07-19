@@ -295,6 +295,7 @@ class NewSetDialog(tk.Toplevel):
                 "freq": int(freq)
             }
 
+            # FOR EIS #
             if idc != "" and iac != "":
                 try:
                     cleaned = iac.strip().strip("()")
@@ -309,6 +310,10 @@ class NewSetDialog(tk.Toplevel):
                 except:
                     messagebox.showwarning("Error", "Please check your IAC values.")
 
+                # Format triplets into: "Amp,Phase,Freq Amp,Phase,Freq ..."
+                triplet_strings = [f"{t[0]},{t[1]},{t[2]}" for t in result]
+                triplets_combined = " ".join(triplet_strings)
+
                 base_params.update({
                     "mode": "EIS",
                     "params": {
@@ -316,23 +321,43 @@ class NewSetDialog(tk.Toplevel):
                         "iac": result, 
                         "duration": int(duration)
                     },
-                    "commands": ["SET_SOC "+soc, "SET_TEMP "+temp, "SSTART "+start, "SPOINTS "+points, "SFREQ "+freq
+                    "commands": [
+                        f"SET_TEMP {temp}",
+                        f"SET_SOC {soc}",
+                        f"SET_SAMPLE_FREQ {freq}",
+                        f"SET_SAMPLE_POINTS {points}",
+                        f"SET_SAMPLE_DELAY {start}",
+                        f"RUN_MULTI_SINE_EIS {idc} {triplets_combined}"
                     ]
                 })
 
-
+            # FOR VRP #
             elif excitation_i != "" and excitation_time != "" and relaxation_time != "":
                 base_params.update({
                     "mode": "VRP",
                     "params": {"excitation_i": int(excitation_i), "excitation_time": int(excitation_time), "relaxation_time": int(relaxation_time)},
-                    "commands": ["SET_SOC "+soc, "SET_TEMP "+temp, "SSTART "+start, "SPOINTS "+points, "SFREQ "+freq
+                    "commands": [
+                        f"SET_TEMP {temp}",
+                        f"SET_SOC {soc}",
+                        f"SET_SAMPLE_FREQ {freq}",
+                        f"SET_SAMPLE_POINTS {points}",
+                        f"SET_SAMPLE_DELAY {start}",
+                        f"RUN_VRP {excitation_i} {excitation_time} {relaxation_time}"
                     ]
                 })
+
+            # FOR CCCV #
             else:
                 base_params.update({
                     "mode": "CHARGE",
                     "params": {"charge_i": int(charge_i), "charge_v_lim": int(charge_v_lim), "charge_v": int(charge_v), "charge_v_time": int(charge_v_time)},
-                    "commands": ["SET_SOC "+soc, "SET_TEMP "+temp, "SSTART "+start, "SPOINTS "+points, "SFREQ "+freq
+                    "commands": [
+                        f"SET_TEMP {temp}",
+                        f"SET_SOC {soc}",
+                        f"SET_SAMPLE_FREQ {freq}",
+                        f"SET_SAMPLE_POINTS {points}",
+                        f"SET_SAMPLE_DELAY {start}",
+                        f"RUN_CCCV {charge_i} {charge_v_lim} {charge_v}"
                     ]
                 })
             
