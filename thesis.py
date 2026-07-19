@@ -73,11 +73,11 @@ class Panel(ttk.LabelFrame):
         self.tree.heading("set_status", text="Status")
         
         # Configure column widths and center alignment
-        self.tree.column("id", width=60, anchor="center")
-        self.tree.column("temp", width=110, anchor="center")
-        self.tree.column("soc", width=110, anchor="center")
-        self.tree.column("mode", width=130, anchor="center")
-        self.tree.column("set_status", width=90, anchor="center")
+        self.tree.column("id", width=30, anchor="center")
+        self.tree.column("temp", width=90, anchor="center")
+        self.tree.column("soc", width=70, anchor="center")
+        self.tree.column("mode", width=20, anchor="center")
+        self.tree.column("set_status", width=200, anchor="center")
         
         # Dynamic Scrollbar binding
         scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.tree.yview)
@@ -522,6 +522,14 @@ class BatteryDashboard(tk.Tk):
         print({iid: s.to_dict() for iid, s in self.experiment_sets.sets.items()})
 
     def handle_run(self):
+        commands = []
+        for (iid, s) in self.experiment_sets.sets.items():
+            for command in s.commands:
+                commands.append(command)
+            
+        print(commands)
+
+
         self.set_status("Sending Run Command and Set List to Microcontroller...")
 
     def handle_abort(self):
