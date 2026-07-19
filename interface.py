@@ -51,7 +51,7 @@ class Set:
 
 class Panel(ttk.LabelFrame):
     def __init__(self, parent, status_callback, **kwargs):
-        super().__init__(parent, text="Added Sets Table", padding=10, **kwargs)
+        super().__init__(parent, text="Experimental Procedures", padding=10, **kwargs)
         
         self.sets = {} # Dict using item iids as keys for faster O(1) tracking
         self.update_status = status_callback
@@ -373,7 +373,7 @@ class BatteryDashboard(tk.Tk):
         super().__init__()
         
         self.title("Battery Dashboard")
-        self.geometry("1050x620")
+        self.geometry("1050x650")
         self.minimum_size = (850, 520)
         
         self.grid_rowconfigure(0, weight=1)
@@ -420,7 +420,8 @@ class BatteryDashboard(tk.Tk):
             "Heatsink": tk.StringVar(value="-- °C"),
             "SoC": tk.StringVar(value="-- %"),
             "Voltage": tk.StringVar(value="-- V"),
-            "Current": tk.StringVar(value="-- A")
+            "Current": tk.StringVar(value="-- A"),
+            "Status": tk.StringVar(value="Disconnected")
         }
         
         for i, (label_text, var) in enumerate(self.status_variables.items()):
