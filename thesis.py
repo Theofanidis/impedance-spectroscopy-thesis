@@ -6,13 +6,16 @@ import re
 
 
 class Set:
-    def __init__(self, set_id, temp, soc, idc, iac_list, status="Pending"):
+    def __init__(self, set_id, temp, soc, mode, sampling_freq, sample_points, sample_time, params, status="Pending"):
         self.set_id = set_id
         self.temp = temp
         self.soc = soc
-        self.idc = idc
-        self.iac_list = iac_list
         self.status = status
+        self.mode=mode
+        self.sampling_freq=sampling_freq
+        self.sample_points=sample_points
+        self.sample_time=sample_time
+        self.params=params
 
 
 class Panel(ttk.LabelFrame):
@@ -27,7 +30,7 @@ class Panel(ttk.LabelFrame):
         
         # Define Columns for the Treeview
         # 'c0' tracks the visible sequential Set ID index column, others hold parameters
-        self.columns = ("id", "temp", "soc", "idc", "iac_list", "set_status")
+        self.columns = ("id", "temp", "soc", "mode", "set_status")
         
         self.tree = ttk.Treeview(self, columns=self.columns, show="headings", selectmode="browse")
         self.tree.grid(row=0, column=0, sticky="nsew")
@@ -36,16 +39,14 @@ class Panel(ttk.LabelFrame):
         self.tree.heading("id", text="Set ID")
         self.tree.heading("temp", text="Target Temp (°C)")
         self.tree.heading("soc", text="Target SoC (%)")
-        self.tree.heading("idc", text="Target IDC (A)")
-        self.tree.heading("iac_list", text="Target IAC List")
+        self.tree.heading("mode", text="Mode")
         self.tree.heading("set_status", text="Status")
         
         # Configure column widths and center alignment
         self.tree.column("id", width=60, anchor="center")
         self.tree.column("temp", width=110, anchor="center")
         self.tree.column("soc", width=110, anchor="center")
-        self.tree.column("idc", width=110, anchor="center")
-        self.tree.column("iac_list", width=130, anchor="center")
+        self.tree.column("mode", width=130, anchor="center")
         self.tree.column("set_status", width=90, anchor="center")
         
         # Dynamic Scrollbar binding
@@ -59,8 +60,7 @@ class Panel(ttk.LabelFrame):
             f"{data_set_instance.set_id}",
             f"{data_set_instance.temp} °C",
             f"{data_set_instance.soc} %",
-            f"{data_set_instance.idc} A",
-            data_set_instance.iac_list,
+            data_set_instance.mode,
             data_set_instance.status
         ))
         # Keep data structure map synced with row reference ID
@@ -124,66 +124,111 @@ class NewSetDialog(tk.Toplevel):
         super().__init__(parent)
         self.parent = parent
         self.title("Create New Experiment Set")
-
-        self.geometry("360x480") 
+        # Kept geometry comfortable for global parameters + notebook layout
+        self.geometry("360x520") 
         self.resizable(False, False)
         
         self.transient(parent)
         self.grab_set()
         self.result = None
         
+        # Base container frame with padding
         base_frame = ttk.Frame(self, padding=15)
         base_frame.pack(fill=tk.BOTH, expand=True)
         
+        # ==========================================
+        # 1. Global Parameters (Outside the Notebook)
+        # ==========================================
+        global_frame = ttk.Frame(base_frame)
+        global_frame.pack(fill=tk.X, pady=(0, 15))
+        global_frame.columnconfigure(1, weight=1)
+        
+        ttk.Label(global_frame, text="Target Temp (C) ").grid(row=0, column=0, sticky="w", pady=5)
+        self.entry_temp = ttk.Entry(global_frame, width=15)
+        self.entry_temp.grid(row=0, column=1, sticky="ew", pady=5)
+        
+        ttk.Label(global_frame, text="Target SoC (%) ").grid(row=1, column=0, sticky="w", pady=5)
+        self.entry_soc = ttk.Entry(global_frame, width=15)
+        self.entry_soc.grid(row=1, column=1, sticky="ew", pady=5)
+        
+        ttk.Label(global_frame, text="Sampling Start (ms) ").grid(row=2, column=0, sticky="w", pady=5)
+        self.entry_start = ttk.Entry(global_frame, width=15)
+        self.entry_start.grid(row=2, column=1, sticky="ew", pady=5)
+
+        ttk.Label(global_frame, text="Sample Points").grid(row=3, column=0, sticky="w", pady=5)
+        self.entry_points = ttk.Entry(global_frame, width=15)
+        self.entry_points.grid(row=3, column=1, sticky="ew", pady=5)
+
+        ttk.Label(global_frame, text="Sampling Freq (Hz) ").grid(row=4, column=0, sticky="w", pady=5)
+        self.entry_freq = ttk.Entry(global_frame, width=15)
+        self.entry_freq.grid(row=4, column=1, sticky="ew", pady=5)
+        
+        # Separator line between global parameters and tabs
+        ttk.Separator(base_frame, orient="horizontal").pack(fill=tk.X, pady=(0, 10))
+
+        # ==========================================
+        # 2. Create the Notebook (Tab Control)
+        # ==========================================
         self.notebook = ttk.Notebook(base_frame)
         self.notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
+        # Initialize the 3 Tabs
         self.tab1 = ttk.Frame(self.notebook, padding=10)
         self.tab2 = ttk.Frame(self.notebook, padding=10)
         self.tab3 = ttk.Frame(self.notebook, padding=10)
         
         self.notebook.add(self.tab1, text="EIS")
         self.notebook.add(self.tab2, text="VRP")
-        self.notebook.add(self.tab3, text="Charge")
-        
+        self.notebook.add(self.tab3, text="CCCV")
+
         self.tab1.columnconfigure(1, weight=1)
         
-        ttk.Label(self.tab1, text="Target Temp (C) ").grid(row=0, column=0, sticky="w", pady=5)
-        self.entry_temp = ttk.Entry(self.tab1, width=15)
-        self.entry_temp.grid(row=0, column=1, sticky="ew", pady=5)
-        
-        ttk.Label(self.tab1, text="Target SoC (%) ").grid(row=1, column=0, sticky="w", pady=5)
-        self.entry_soc = ttk.Entry(self.tab1, width=15)
-        self.entry_soc.grid(row=1, column=1, sticky="ew", pady=5)
-        
-        ttk.Label(self.tab1, text="Target IDC (mA) ").grid(row=2, column=0, sticky="w", pady=5)
+        ttk.Label(self.tab1, text="Target IDC (mA) ").grid(row=0, column=0, sticky="w", pady=5)
         self.entry_idc = ttk.Entry(self.tab1, width=15)
-        self.entry_idc.grid(row=2, column=1, sticky="ew", pady=5)
+        self.entry_idc.grid(row=0, column=1, sticky="ew", pady=5)
         
-        ttk.Label(self.tab1, text="Target IAC List ").grid(row=3, column=0, sticky="w", pady=5)
+        ttk.Label(self.tab1, text="Target IAC List ").grid(row=1, column=0, sticky="w", pady=5)
         self.entry_iac = ttk.Entry(self.tab1, width=15)
-        self.entry_iac.grid(row=3, column=1, sticky="ew", pady=5)
+        self.entry_iac.grid(row=1, column=1, sticky="ew", pady=5)
 
-        ttk.Label(self.tab1, text="Duration (ms) ").grid(row=4, column=0, sticky="w", pady=5)
-        self.entry_duration = ttk.Entry(self.tab1, width=15)  # Fixed variable name
-        self.entry_duration.grid(row=4, column=1, sticky="ew", pady=5)
-
-        ttk.Label(self.tab1, text="Sampling Start (ms) ").grid(row=5, column=0, sticky="w", pady=5)
-        self.entry_start = ttk.Entry(self.tab1, width=15)     # Fixed variable name
-        self.entry_start.grid(row=5, column=1, sticky="ew", pady=5)
-
-        ttk.Label(self.tab1, text="Sample Points").grid(row=6, column=0, sticky="w", pady=5)
-        self.entry_points = ttk.Entry(self.tab1, width=15)    # Fixed variable name
-        self.entry_points.grid(row=6, column=1, sticky="ew", pady=5)
-
-        ttk.Label(self.tab1, text="Sampling Freq (Hz) ").grid(row=7, column=0, sticky="w", pady=5)
-        self.entry_freq = ttk.Entry(self.tab1, width=15)      # Fixed variable name
-        self.entry_freq.grid(row=7, column=1, sticky="ew", pady=5)
+        ttk.Label(self.tab1, text="Duration (ms) ").grid(row=2, column=0, sticky="w", pady=5)
+        self.entry_duration = ttk.Entry(self.tab1, width=15)
+        self.entry_duration.grid(row=2, column=1, sticky="ew", pady=5)
 
         info_frame = ttk.Frame(self.tab1)
-        info_frame.grid(row=8, column=0, columnspan=2, pady=(15, 0), sticky="ew")
+        info_frame.grid(row=3, column=0, columnspan=2, pady=(10, 0), sticky="ew")
         ttk.Label(info_frame, text="Οι AC συνιστώσες να έχουν τη μορφή \n(f1,p1,I1),(f2,p2,I2),...").grid()
         
+        self.tab2.columnconfigure(1, weight=1)
+        
+        ttk.Label(self.tab2, text="Excitation I (mA) ").grid(row=0, column=0, sticky="w", pady=5)
+        self.entry_excitation_i = ttk.Entry(self.tab2, width=15)
+        self.entry_excitation_i.grid(row=0, column=1, sticky="ew", pady=5)
+        
+        ttk.Label(self.tab2, text="Excitation Time (s) ").grid(row=1, column=0, sticky="w", pady=5)
+        self.entry_excitation_time = ttk.Entry(self.tab2, width=15)
+        self.entry_excitation_time.grid(row=1, column=1, sticky="ew", pady=5)
+        
+        ttk.Label(self.tab2, text="Relaxation Time (s) ").grid(row=2, column=0, sticky="w", pady=5)
+        self.entry_relaxation_time = ttk.Entry(self.tab2, width=15)
+        self.entry_relaxation_time.grid(row=2, column=1, sticky="ew", pady=5)
+
+        ttk.Label(self.tab3, text="CC stage I (mA) ").grid(row=0, column=0, sticky="w", pady=5)
+        self.entry_charge_i = ttk.Entry(self.tab3, width=15)
+        self.entry_charge_i.grid(row=0, column=1, sticky="ew", pady=5)
+
+        ttk.Label(self.tab3, text="CC stage V limit (mV) ").grid(row=1, column=0, sticky="w", pady=5)
+        self.entry_charge_v_lim = ttk.Entry(self.tab3, width=15)
+        self.entry_charge_v_lim.grid(row=1, column=1, sticky="ew", pady=5)
+
+        ttk.Label(self.tab3, text="CV stage V (mV) ").grid(row=2, column=0, sticky="w", pady=5)
+        self.entry_charge_v = ttk.Entry(self.tab3, width=15)
+        self.entry_charge_v.grid(row=2, column=1, sticky="ew", pady=5)
+
+        ttk.Label(self.tab3, text="CV stage time (s) ").grid(row=3, column=0, sticky="w", pady=5)
+        self.entry_charge_v_time = ttk.Entry(self.tab3, width=15)
+        self.entry_charge_v_time.grid(row=3, column=1, sticky="ew", pady=5)
+
         btn_frame = ttk.Frame(base_frame)
         btn_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=(5, 0))
         btn_frame.columnconfigure(0, weight=1)
@@ -196,15 +241,77 @@ class NewSetDialog(tk.Toplevel):
         self.wait_window(self)
 
     def on_submit(self):
-        # Placeholder for your original submit logic
-        pass
+        temp = self.entry_temp.get()
+        soc = self.entry_soc.get()
+        start=self.entry_start.get()
+        points=self.entry_points.get()
+        freq=self.entry_freq.get()
+        idc = self.entry_idc.get()
+        iac = self.entry_iac.get()
+        duration = self.entry_duration.get()
+        excitation_i = self.entry_excitation_i.get()
+        excitation_time = self.entry_excitation_time.get()
+        relaxation_time = self.entry_relaxation_time.get()
+        charge_i = self.entry_charge_i.get()
+        charge_v_lim = self.entry_charge_v_lim.get()
+        charge_v = self.entry_charge_v.get()
+        charge_v_time = self.entry_charge_v_time.get()
+        
+        try:
+            if idc != "" and iac != "":
+                mode = "EIS"
+                self.result = {
+                    "temp": int(temp),
+                    "soc": int(soc),
+                    "start": int(start),
+                    "points": int(points),
+                    "freq": int(freq),
+                    "idc": int(idc),
+                    "iac": int(iac),
+                    "duration": int(duration),
+                    "mode": mode
+                }
+            elif excitation_i != "" and excitation_time != "" and relaxation_time != "":
+                mode = "VRP"
+                self.result = {
+                    "temp": int(temp),
+                    "soc": int(soc),
+                    "start": int(start),
+                    "points": int(points),
+                    "freq": int(freq),
+                    "excitation_i": int(excitation_i),
+                    "excitation_time": int(excitation_time),
+                    "relaxation_time": int(relaxation_time),
+                    "mode": mode
+                }
+            else:
+                mode = "CHARGE"
+                self.result = {
+                    "temp": int(temp),
+                    "soc": int(soc),
+                    "start": int(start),
+                    "points": int(points),
+                    "freq": int(freq),
+                    "charge_i": int(charge_i),
+                    "charge_v_lim": int(charge_v_lim),
+                    "charge_v": int(charge_v),
+                    "charge_v_time": int(charge_v_time),
+                    "mode": mode
+                }
+            self.destroy()
+
+        except ValueError:
+            messagebox.showwarning("Error", "Please check your values")
+
+        
+
 
 class BatteryDashboard(tk.Tk):
     def __init__(self):
         super().__init__()
         
-        self.title("Battery Table Dashboard Workspace")
-        self.geometry("1050x620") # Expanded base size slightly to display table columns clean
+        self.title("Battery Dashboard")
+        self.geometry("1050x620")
         self.minimum_size = (850, 520)
         
         self.grid_rowconfigure(0, weight=1)
@@ -220,6 +327,7 @@ class BatteryDashboard(tk.Tk):
         menu_bar = tk.Menu(self)
         file_menu = tk.Menu(menu_bar, tearoff=0)
         file_menu.add_command(label="New Set Wizard", command=self.handle_new_set)
+        file_menu.add_command(label="Export Sets...", command=self.handle_new_set)
         file_menu.add_separator()
         file_menu.add_command(label="Exit Application", command=self.quit)
         
@@ -272,7 +380,7 @@ class BatteryDashboard(tk.Tk):
         ttk.Button(btn_group, text="RUN", command=self.handle_run).grid(row=4, column=0, sticky="ew", pady=5, padx=(0, 2))
         ttk.Button(btn_group, text="ABORT", command=self.handle_abort, style="Abort.TButton").grid(row=4, column=1, sticky="ew", pady=5, padx=(2, 0))
         
-        ttk.Button(btn_group, text="Quit", command=self.quit).grid(row=5, column=0, columnspan=2, sticky="ew", pady=(15, 5))
+        ttk.Button(btn_group, text="Download CSV...", command=self.download_measurements).grid(row=5, column=0, columnspan=2, sticky="ew", pady=(15, 5))
         
         self.status_var = tk.StringVar()
         self.status_bar = tk.Label(self, textvariable=self.status_var, anchor="w", padx=10, pady=4, bd=1, relief=tk.SUNKEN, background="#F0F0F0")
@@ -282,7 +390,7 @@ class BatteryDashboard(tk.Tk):
         
 
     def set_status(self, text_message):
-        self.status_var.set(f" Status: {text_message}")
+        self.status_var.set(f"{text_message}")
 
 
     def handle_new_set(self):
@@ -293,9 +401,13 @@ class BatteryDashboard(tk.Tk):
                 set_id=self.set_counter,
                 temp=dialog.result["temp"],
                 soc=dialog.result["soc"],
-                idc=dialog.result["idc"],
-                iac_list=dialog.result["iac_list"],
-                status="Pending"
+                status="Pending",
+                mode=dialog.result["mode"],
+                sampling_freq=dialog.result["mode"],
+                sample_points=dialog.result["mode"],
+                sample_time=dialog.result["mode"],
+                params={}
+                
             )
             self.set_counter += 1
             self.experiment_sets.add_set(new_set_obj)
@@ -303,19 +415,16 @@ class BatteryDashboard(tk.Tk):
             self.set_status("Configuration creation canceled.")
 
     def handle_sync(self):
-        self.set_status("Firing live evaluation framework verification tests...")
-        self.status_variables["Temp 1"].set("24.5 °C")
-        self.status_variables["Temp 2"].set("25.1 °C")
-        self.status_variables["Temp 3"].set("24.8 °C")
-        self.status_variables["SoC"].set("87.3 %")
-        self.status_variables["Voltage"].set("3.82 V")
-        self.status_variables["Current"].set("1.45 A")
+        print(self.experiment_sets.sets)
 
     def handle_run(self):
         self.set_status("Sending Run Command and Set List to Microcontroller...")
 
     def handle_abort(self):
         self.set_status("Sending Halt Command to Microcontroller...")
+
+    def download_measurements(self):
+        self.set_status("Downloading...")
 
 
 if __name__ == "__main__":
